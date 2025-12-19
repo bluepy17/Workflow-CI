@@ -32,92 +32,93 @@ def load_data():
 
     return X_train, X_test, y_train, y_test
 
-# MODEL TRAINING (MLFLOW PROJECT SAFE)
+# MODEL TRAINING 
+
 def train_model(X_train, X_test, y_train, y_test):
 
-    rf = RandomForestClassifier(
-        n_estimators=300,
-        max_depth=20,
-        min_samples_leaf=2,
-        class_weight="balanced",
-        random_state=42,
-        n_jobs=-1,
-    )
+    # Ambil run_id dari MLflow Project
+    run_id = os.environ.get("MLFLOW_RUN_ID")
 
-    gb = GradientBoostingClassifier(
-        n_estimators=200,
-        learning_rate=0.08,
-        max_depth=4,
-        subsample=0.8,
-        random_state=42,
-    )
+    with mlflow.start_run(run_id=run_id):
 
-    model = VotingClassifier(
-        estimators=[("rf", rf), ("gb", gb)],
-        voting="soft",
-        weights=[2, 1],
-        n_jobs=-1,
-    )
+        rf = RandomForestClassifier(
+            n_estimators=300,
+            max_depth=20,
+            min_samples_leaf=2,
+            class_weight="balanced",
+            random_state=42,
+            n_jobs=-1,
+        )
 
-    model.fit(X_train, y_train)
+        gb = GradientBoostingClassifier(
+            n_estimators=200,
+            learning_rate=0.08,
+            max_depth=4,
+            subsample=0.8,
+            random_state=42,
+        )
 
-    y_proba = model.predict_proba(X_test)[:, 1]
-    y_pred = (y_proba >= 0.25).astype(int)
+        model = VotingClassifier(
+            estimators=[("rf", rf), ("gb", gb)],
+            voting="soft",
+            weights=[2, 1],
+            n_jobs=-1,
+        )
 
-    print(classification_report(y_test, y_pred))
+        model.fit(X_train, y_train)
 
-    acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred)
-    rec = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    roc = roc_auc_score(y_test, y_proba)
+        y_proba = model.predict_proba(X_test)[:, 1]
+        y_pred = (y_proba >= 0.25).astype(int)
 
-    # Log metrics
-    mlflow.log_metric("accuracy", acc)
-    mlflow.log_metric("precision", prec)
-    mlflow.log_metric("recall", rec)
-    mlflow.log_metric("f1_score", f1)
-    mlflow.log_metric("roc_auc", roc)
+        print(classification_report(y_test, y_pred))
 
-    # Log params
-    mlflow.log_param("threshold", 0.25)
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred)
+        rec = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        roc = roc_auc_score(y_test, y_proba)
 
-    # Save metric info
-    metric_info = {
-        "accuracy": acc,
-        "precision": prec,
-        "recall": rec,
-        "f1_score": f1,
-        "roc_auc": roc,
-        "threshold": 0.25,
-    }
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("precision", prec)
+        mlflow.log_metric("recall", rec)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("roc_auc", roc)
 
-    with open("metric_info.json", "w") as f:
-        json.dump(metric_info, f, indent=4)
+        mlflow.log_param("threshold", 0.25)
 
-    mlflow.log_artifact("metric_info.json")
-    os.remove("metric_info.json")
+        metric_info = {
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
+            "f1_score": f1,
+            "roc_auc": roc,
+            "threshold": 0.25,
+        }
 
-    # Confusion Matrix
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.tight_layout()
+        with open("metric_info.json", "w") as f:
+            json.dump(metric_info, f, indent=4)
 
-    cm_path = "training_confusion_matrix.png"
-    plt.savefig(cm_path)
-    plt.close()
+        mlflow.log_artifact("metric_info.json")
+        os.remove("metric_info.json")
 
-    mlflow.log_artifact(cm_path)
-    os.remove(cm_path)
+        cm = confusion_matrix(y_test, y_pred)
+        plt.figure(figsize=(6, 5))
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.tight_layout()
 
-    # Log model
-    mlflow.sklearn.log_model(model, artifact_path="model")
+        cm_path = "training_confusion_matrix.png"
+        plt.savefig(cm_path)
+        plt.close()
 
-    return model
-    
+        mlflow.log_artifact(cm_path)
+        os.remove(cm_path)
+
+        mlflow.sklearn.log_model(model, artifact_path="model")
+
+        return model
+
 # MAIN
 
 def main():
