@@ -12,7 +12,11 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_s
 
 warnings.filterwarnings("ignore")
 
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
+if os.getenv("MLFLOW_TRACKING_URI"):
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+else:
+    mlflow.set_tracking_uri("http://127.0.0.1:5000")
+
 mlflow.set_experiment("Heart_Disease_Final_Model")
 mlflow.sklearn.autolog(log_models=True)
 
