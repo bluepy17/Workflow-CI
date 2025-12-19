@@ -24,9 +24,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run MLflow Project (Training)
-        env:
-          MLFLOW_TRACKING_URI: file:./mlruns
         run: |
+          export MLFLOW_TRACKING_URI=$PWD/mlruns
           mlflow run MLProject --env-manager=local --experiment-name=Heart_Disease_Final_Model
 
       - name: Get Latest MLflow Run ID
@@ -37,9 +36,8 @@ jobs:
           echo "Latest RUN_ID: $RUN_ID"
 
       - name: Build Docker Image with MLflow
-        env:
-          MLFLOW_TRACKING_URI: file:./mlruns
         run: |
+          export MLFLOW_TRACKING_URI=$PWD/mlruns
           mlflow models build-docker \
             --model-uri runs:/$RUN_ID/model \
             --name heart-disease-model
