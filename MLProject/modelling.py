@@ -20,11 +20,12 @@ from sklearn.metrics import (
 
 warnings.filterwarnings("ignore")
 
+# Gunakan tracking URI dari environment (CI-safe)
 tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 mlflow.set_tracking_uri(tracking_uri)
 
 mlflow.set_experiment("Heart_Disease_Final_Model")
-mlflow.sklearn.autolog(log_models=True)
+mlflow.sklearn.autolog(log_models=False)
 
 
 def load_data():
@@ -63,6 +64,9 @@ def train_model(X_train, X_test, y_train, y_test):
     )
 
     model.fit(X_train, y_train)
+
+    # WAJIB: simpan model agar bisa build-docker
+    mlflow.sklearn.log_model(model, artifact_path="model")
 
     y_proba = model.predict_proba(X_test)[:, 1]
     y_pred = (y_proba >= 0.25).astype(int)
