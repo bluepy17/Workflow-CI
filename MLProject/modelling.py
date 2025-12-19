@@ -12,6 +12,9 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_s
 
 warnings.filterwarnings("ignore")
 
+tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+mlflow.set_tracking_uri(tracking_uri)
+
 
 def load_data():
     base_path = "heart_preprocessing"
