@@ -9,9 +9,6 @@ jobs:
   train-and-dockerize:
     runs-on: ubuntu-latest
 
-    env:
-      MLFLOW_TRACKING_URI: file:./mlruns
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -27,8 +24,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run MLflow Project (Training)
+        env:
+          MLFLOW_TRACKING_URI: file:./mlruns
         run: |
-          mlflow run MLProject --env-manager=local
+          cd MLProject
+          mlflow run . --env-manager=local --experiment-name=Heart_Disease_Final_Model
 
       - name: Get Latest MLflow Run ID
         id: get_run
