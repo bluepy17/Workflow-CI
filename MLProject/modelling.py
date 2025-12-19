@@ -12,15 +12,6 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_s
 
 warnings.filterwarnings("ignore")
 
-tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
-if not tracking_uri.startswith("file:///"):
-    if tracking_uri.startswith("file:./"):
-        tracking_uri = "file://" + os.path.abspath(tracking_uri.replace("file:./", "./"))
-    elif tracking_uri.startswith("file:"):
-        tracking_uri = "file://" + os.path.abspath(tracking_uri.replace("file:", ""))
-
-mlflow.set_tracking_uri(tracking_uri)
-
 
 def load_data():
     base_path = os.path.join(os.path.dirname(__file__), "heart_preprocessing")
@@ -70,46 +61,53 @@ def train_model(X_train, X_test, y_train, y_test):
     f1 = f1_score(y_test, y_pred)
     roc = roc_auc_score(y_test, y_proba)
 
-    mlflow.log_param("threshold", 0.25)
-    mlflow.log_param("rf_n_estimators", 300)
-    mlflow.log_param("rf_max_depth", 20)
-    mlflow.log_param("gb_n_estimators", 200)
-    mlflow.log_param("gb_learning_rate", 0.08)
+    try:
+        mlflow.log_param("threshold", 0.25)
+        mlflow.log_param("rf_n_estimators", 300)
+        mlflow.log_param("rf_max_depth", 20)
+        mlflow.log_param("gb_n_estimators", 200)
+        mlflow.log_param("gb_learning_rate", 0.08)
 
-    mlflow.log_metric("accuracy", acc)
-    mlflow.log_metric("precision", prec)
-    mlflow.log_metric("recall", rec)
-    mlflow.log_metric("f1_score", f1)
-    mlflow.log_metric("roc_auc", roc)
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("precision", prec)
+        mlflow.log_metric("recall", rec)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("roc_auc", roc)
 
-    metric_info = {
-        "accuracy": acc,
-        "precision": prec,
-        "recall": rec,
-        "f1_score": f1,
-        "roc_auc": roc,
-        "threshold": 0.25
-    }
+        metric_info = {
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
+            "f1_score": f1,
+            "roc_auc": roc,
+            "threshold": 0.25
+        }
 
-    with open("metric_info.json", "w") as f:
-        json.dump(metric_info, f, indent=4)
+        with open("metric_info.json", "w") as f:
+            json.dump(metric_info, f, indent=4)
 
-    mlflow.log_artifact("metric_info.json")
-    os.remove("metric_info.json")
+        mlflow.log_artifact("metric_info.json")
+        os.remove("metric_info.json")
 
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.tight_layout()
-    plt.savefig("training_confusion_matrix.png")
-    plt.close()
+        cm = confusion_matrix(y_test, y_pred)
+        plt.figure(figsize=(6, 5))
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.tight_layout()
+        plt.savefig("training_confusion_matrix.png")
+        plt.close()
 
-    mlflow.log_artifact("training_confusion_matrix.png")
-    os.remove("training_confusion_matrix.png")
+        mlflow.log_artifact("training_confusion_matrix.png")
+        os.remove("training_confusion_matrix.png")
 
-    mlflow.sklearn.log_model(model, "model")
+        mlflow.sklearn.log_model(model, "model")
+    except Exception as e:
+        print(f"MLflow logging failed: {e}")
+        print("Saving model manually...")
+        import pickle
+        with open("model.pkl", "wb") as f:
+            pickle.dump(model, f)
 
     return model
 
