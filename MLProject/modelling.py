@@ -13,6 +13,12 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_s
 warnings.filterwarnings("ignore")
 
 tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+if not tracking_uri.startswith("file:///"):
+    if tracking_uri.startswith("file:./"):
+        tracking_uri = "file://" + os.path.abspath(tracking_uri.replace("file:./", "./"))
+    elif tracking_uri.startswith("file:"):
+        tracking_uri = "file://" + os.path.abspath(tracking_uri.replace("file:", ""))
+
 mlflow.set_tracking_uri(tracking_uri)
 
 
