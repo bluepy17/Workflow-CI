@@ -24,13 +24,13 @@ from sklearn.metrics import (
 
 warnings.filterwarnings("ignore")
 
-# Tracking URI CI-safe
+
 tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 mlflow.set_tracking_uri(tracking_uri)
 
 mlflow.set_experiment("Heart_Disease_Final_Model")
 
-# PENTING: MATIKAN AUTOLOG TOTAL
+
 mlflow.sklearn.autolog(disable=True)
 
 
@@ -73,8 +73,13 @@ def train_model(X_train, X_test, y_train, y_test):
 
     model.fit(X_train, y_train)
 
-    # WAJIB: SIMPAN MODEL KE artifacts/model
-    mlflow.sklearn.log_model(model, artifact_path="model")
+    run_id = os.environ["MLFLOW_RUN_ID"]
+
+    mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="model",
+        run_id=run_id
+    )
 
     y_proba = model.predict_proba(X_test)[:, 1]
     y_pred = (y_proba >= 0.25).astype(int)
