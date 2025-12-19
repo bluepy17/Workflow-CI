@@ -24,12 +24,14 @@ from sklearn.metrics import (
 
 warnings.filterwarnings("ignore")
 
-# Tracking URI (CI-safe)
+# Tracking URI CI-safe
 tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 mlflow.set_tracking_uri(tracking_uri)
 
 mlflow.set_experiment("Heart_Disease_Final_Model")
-mlflow.sklearn.autolog(log_models=False)
+
+# PENTING: MATIKAN AUTOLOG TOTAL
+mlflow.sklearn.autolog(disable=True)
 
 
 def load_data():
@@ -71,7 +73,7 @@ def train_model(X_train, X_test, y_train, y_test):
 
     model.fit(X_train, y_train)
 
-    # WAJIB agar see-run dapat build-docker
+    # WAJIB: SIMPAN MODEL KE artifacts/model
     mlflow.sklearn.log_model(model, artifact_path="model")
 
     y_proba = model.predict_proba(X_test)[:, 1]
