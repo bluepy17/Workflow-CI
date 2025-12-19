@@ -25,7 +25,6 @@ from sklearn.metrics import (
 warnings.filterwarnings("ignore")
 
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
-mlflow.sklearn.autolog(disable=True)
 
 
 def load_data():
@@ -67,46 +66,42 @@ def train_model(X_train, X_test, y_train, y_test):
 
     model.fit(X_train, y_train)
 
-    run_id = os.environ.get("MLFLOW_RUN_ID")
+    mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="model"
+    )
 
-    with mlflow.start_run(run_id=run_id):
+    y_proba = model.predict_proba(X_test)[:, 1]
+    y_pred = (y_proba >= 0.25).astype(int)
 
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="model"
-        )
+    print(classification_report(y_test, y_pred))
 
-        y_proba = model.predict_proba(X_test)[:, 1]
-        y_pred = (y_proba >= 0.25).astype(int)
+    metrics = {
+        "accuracy": accuracy_score(y_test, y_pred),
+        "precision": precision_score(y_test, y_pred),
+        "recall": recall_score(y_test, y_pred),
+        "f1_score": f1_score(y_test, y_pred),
+        "roc_auc": roc_auc_score(y_test, y_proba),
+        "threshold": 0.25
+    }
 
-        print(classification_report(y_test, y_pred))
+    with open("metric_info.json", "w") as f:
+        json.dump(metrics, f, indent=4)
 
-        metrics = {
-            "accuracy": accuracy_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred),
-            "recall": recall_score(y_test, y_pred),
-            "f1_score": f1_score(y_test, y_pred),
-            "roc_auc": roc_auc_score(y_test, y_proba),
-            "threshold": 0.25
-        }
+    mlflow.log_artifact("metric_info.json")
+    os.remove("metric_info.json")
 
-        with open("metric_info.json", "w") as f:
-            json.dump(metrics, f, indent=4)
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig("training_confusion_matrix.png")
+    plt.close()
 
-        mlflow.log_artifact("metric_info.json")
-        os.remove("metric_info.json")
-
-        cm = confusion_matrix(y_test, y_pred)
-        plt.figure(figsize=(6, 5))
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-        plt.xlabel("Predicted")
-        plt.ylabel("Actual")
-        plt.tight_layout()
-        plt.savefig("training_confusion_matrix.png")
-        plt.close()
-
-        mlflow.log_artifact("training_confusion_matrix.png")
-        os.remove("training_confusion_matrix.png")
+    mlflow.log_artifact("training_confusion_matrix.png")
+    os.remove("training_confusion_matrix.png")
 
 
 def main():
