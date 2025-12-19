@@ -17,7 +17,7 @@ mlflow.set_tracking_uri(tracking_uri)
 
 
 def load_data():
-    base_path = "heart_preprocessing"
+    base_path = os.path.join(os.path.dirname(__file__), "heart_preprocessing")
     X_train = pd.read_csv(os.path.join(base_path, "X_train_preprocessing.csv"))
     X_test = pd.read_csv(os.path.join(base_path, "X_test_preprocessing.csv"))
     y_train = pd.read_csv(os.path.join(base_path, "y_train_preprocessing.csv")).squeeze()
