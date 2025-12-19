@@ -27,8 +27,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: file:./mlruns
         run: |
-          cd MLProject
-          mlflow run . --env-manager=local --experiment-name=Heart_Disease_Final_Model
+          mlflow run MLProject --env-manager=local --experiment-name=Heart_Disease_Final_Model
 
       - name: Get Latest MLflow Run ID
         id: get_run
