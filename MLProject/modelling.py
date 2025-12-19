@@ -8,28 +8,34 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, f1_score, accuracy_score, roc_auc_score
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+    accuracy_score,
+    roc_auc_score,
+)
 
 warnings.filterwarnings("ignore")
 
-if os.getenv("MLFLOW_TRACKING_URI"):
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
-else:
-    mlflow.set_tracking_uri("http://127.0.0.1:5000")
+# MLFLOW CONFIG (PROJECT & CI SAFE)
 
 mlflow.set_experiment("Heart_Disease_Final_Model")
-mlflow.sklearn.autolog(log_models=True)
 
-
+# DATA LOADING
 def load_data():
     base_path = "heart_preprocessing"
+
     X_train = pd.read_csv(os.path.join(base_path, "X_train_preprocessing.csv"))
     X_test = pd.read_csv(os.path.join(base_path, "X_test_preprocessing.csv"))
     y_train = pd.read_csv(os.path.join(base_path, "y_train_preprocessing.csv")).squeeze()
     y_test = pd.read_csv(os.path.join(base_path, "y_test.csv")).squeeze()
+
     return X_train, X_test, y_train, y_test
 
-
+# MODEL TRAINING
 def train_model(X_train, X_test, y_train, y_test):
 
     with mlflow.start_run(run_name="Modelling Tanpa Tuning"):
@@ -40,7 +46,7 @@ def train_model(X_train, X_test, y_train, y_test):
             min_samples_leaf=2,
             class_weight="balanced",
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
         )
 
         gb = GradientBoostingClassifier(
@@ -48,14 +54,14 @@ def train_model(X_train, X_test, y_train, y_test):
             learning_rate=0.08,
             max_depth=4,
             subsample=0.8,
-            random_state=42
+            random_state=42,
         )
 
         model = VotingClassifier(
             estimators=[("rf", rf), ("gb", gb)],
             voting="soft",
             weights=[2, 1],
-            n_jobs=-1
+            n_jobs=-1,
         )
 
         model.fit(X_train, y_train)
@@ -71,13 +77,21 @@ def train_model(X_train, X_test, y_train, y_test):
         f1 = f1_score(y_test, y_pred)
         roc = roc_auc_score(y_test, y_proba)
 
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("precision", prec)
+        mlflow.log_metric("recall", rec)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("roc_auc", roc)
+        mlflow.log_param("threshold", 0.25)
+
+        # Save metric info
         metric_info = {
             "accuracy": acc,
             "precision": prec,
             "recall": rec,
             "f1_score": f1,
             "roc_auc": roc,
-            "threshold": 0.25
+            "threshold": 0.25,
         }
 
         with open("metric_info.json", "w") as f:
@@ -86,26 +100,31 @@ def train_model(X_train, X_test, y_train, y_test):
         mlflow.log_artifact("metric_info.json")
         os.remove("metric_info.json")
 
+        # Confusion Matrix
         cm = confusion_matrix(y_test, y_pred)
         plt.figure(figsize=(6, 5))
         sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
         plt.xlabel("Predicted")
         plt.ylabel("Actual")
         plt.tight_layout()
-        plt.savefig("training_confusion_matrix.png")
+
+        cm_path = "training_confusion_matrix.png"
+        plt.savefig(cm_path)
         plt.close()
 
-        mlflow.log_artifact("training_confusion_matrix.png")
-        os.remove("training_confusion_matrix.png")
+        mlflow.log_artifact(cm_path)
+        os.remove(cm_path)
+
+        # Log model
+        mlflow.sklearn.log_model(model, artifact_path="model")
 
         return model
-
-
+        
+# MAIN
 def main():
     X_train, X_test, y_train, y_test = load_data()
     train_model(X_train, X_test, y_train, y_test)
-    print("Training finished")
-    print("MLflow UI: http://127.0.0.1:5000")
+    print("Training finished successfully")
 
 
 if __name__ == "__main__":
