@@ -14,7 +14,6 @@ warnings.filterwarnings("ignore")
 
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
 mlflow.set_experiment("Heart_Disease_Final_Model")
-mlflow.sklearn.autolog(log_models=True)
 
 
 def load_data():
@@ -28,73 +27,85 @@ def load_data():
 
 def train_model(X_train, X_test, y_train, y_test):
 
-    with mlflow.start_run(run_name="Modelling Tanpa Tuning"):
+    rf = RandomForestClassifier(
+        n_estimators=300,
+        max_depth=20,
+        min_samples_leaf=2,
+        class_weight="balanced",
+        random_state=42,
+        n_jobs=-1
+    )
 
-        rf = RandomForestClassifier(
-            n_estimators=300,
-            max_depth=20,
-            min_samples_leaf=2,
-            class_weight="balanced",
-            random_state=42,
-            n_jobs=-1
-        )
+    gb = GradientBoostingClassifier(
+        n_estimators=200,
+        learning_rate=0.08,
+        max_depth=4,
+        subsample=0.8,
+        random_state=42
+    )
 
-        gb = GradientBoostingClassifier(
-            n_estimators=200,
-            learning_rate=0.08,
-            max_depth=4,
-            subsample=0.8,
-            random_state=42
-        )
+    model = VotingClassifier(
+        estimators=[("rf", rf), ("gb", gb)],
+        voting="soft",
+        weights=[2, 1],
+        n_jobs=-1
+    )
 
-        model = VotingClassifier(
-            estimators=[("rf", rf), ("gb", gb)],
-            voting="soft",
-            weights=[2, 1],
-            n_jobs=-1
-        )
+    model.fit(X_train, y_train)
 
-        model.fit(X_train, y_train)
+    y_proba = model.predict_proba(X_test)[:, 1]
+    y_pred = (y_proba >= 0.25).astype(int)
 
-        y_proba = model.predict_proba(X_test)[:, 1]
-        y_pred = (y_proba >= 0.25).astype(int)
+    print(classification_report(y_test, y_pred))
 
-        print(classification_report(y_test, y_pred))
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc = roc_auc_score(y_test, y_proba)
 
-        acc = accuracy_score(y_test, y_pred)
-        prec = precision_score(y_test, y_pred)
-        rec = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
-        roc = roc_auc_score(y_test, y_proba)
+    mlflow.log_param("threshold", 0.25)
+    mlflow.log_param("rf_n_estimators", 300)
+    mlflow.log_param("rf_max_depth", 20)
+    mlflow.log_param("gb_n_estimators", 200)
+    mlflow.log_param("gb_learning_rate", 0.08)
 
-        metric_info = {
-            "accuracy": acc,
-            "precision": prec,
-            "recall": rec,
-            "f1_score": f1,
-            "roc_auc": roc,
-            "threshold": 0.25
-        }
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("precision", prec)
+    mlflow.log_metric("recall", rec)
+    mlflow.log_metric("f1_score", f1)
+    mlflow.log_metric("roc_auc", roc)
 
-        with open("metric_info.json", "w") as f:
-            json.dump(metric_info, f, indent=4)
+    metric_info = {
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1_score": f1,
+        "roc_auc": roc,
+        "threshold": 0.25
+    }
 
-        mlflow.log_artifact("metric_info.json")
-        os.remove("metric_info.json")
+    with open("metric_info.json", "w") as f:
+        json.dump(metric_info, f, indent=4)
 
-        cm = confusion_matrix(y_test, y_pred)
-        plt.figure(figsize=(6, 5))
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-        plt.xlabel("Predicted")
-        plt.ylabel("Actual")
-        plt.tight_layout()
-        plt.savefig("training_confusion_matrix.png")
-        plt.close()
+    mlflow.log_artifact("metric_info.json")
+    os.remove("metric_info.json")
 
-        mlflow.log_artifact("training_confusion_matrix.png")
-        os.remove("training_confusion_matrix.png")
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig("training_confusion_matrix.png")
+    plt.close()
 
-        return model
+    mlflow.log_artifact("training_confusion_matrix.png")
+    os.remove("training_confusion_matrix.png")
+
+    mlflow.sklearn.log_model(model, "model")
+
+    return model
 
 
 def main():
