@@ -27,7 +27,8 @@ warnings.filterwarnings("ignore")
 
 tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 mlflow.set_tracking_uri(tracking_uri)
-mlflow.set_experiment("Heart_Disease_Final_Model")
+
+
 mlflow.sklearn.autolog(disable=True)
 
 
@@ -70,7 +71,17 @@ def train_model(X_train, X_test, y_train, y_test):
 
     model.fit(X_train, y_train)
 
-    mlflow.sklearn.log_model(model, artifact_path="model")
+ 
+    active_run = mlflow.active_run()
+    run_id = active_run.info.run_id
+
+
+    mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="model",
+        registered_model_name=None,
+        run_id=run_id
+    )
 
     y_proba = model.predict_proba(X_test)[:, 1]
     y_pred = (y_proba >= 0.25).astype(int)
