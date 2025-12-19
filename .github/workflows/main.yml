@@ -32,11 +32,13 @@ jobs:
       - name: Get Latest MLflow Run ID
         id: get_run
         run: |
-          RUN_ID=$(ls -td mlruns/*/* | head -n 1 | awk -F/ '{print $NF}')
+          RUN_ID=$(find mlruns -type f -name "meta.yaml" -printf '%T@ %p\n' | sort -rn | head -1 | awk '{print $2}' | xargs dirname | xargs basename)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest RUN_ID: $RUN_ID"
 
       - name: Build Docker Image with MLflow
+        env:
+          MLFLOW_TRACKING_URI: file:./mlruns
         run: |
           mlflow models build-docker \
             --model-uri runs:/$RUN_ID/model \
