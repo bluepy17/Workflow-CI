@@ -31,9 +31,11 @@ jobs:
           mlflow run MLProject --env-manager=local
 
       - name: Get Latest MLflow Run ID
+        id: get_run
         run: |
           RUN_ID=$(ls -td mlruns/*/* | head -n 1 | awk -F/ '{print $NF}')
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Latest RUN_ID: $RUN_ID"
 
       - name: Build Docker Image with MLflow
         run: |
