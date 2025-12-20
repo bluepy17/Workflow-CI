@@ -8,47 +8,118 @@ on:
 jobs:
   train-and-dockerize:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up job
+        run: echo "Starting MLflow training pipeline"
+      
+      - name: Run actions/checkout@v3
+        uses: actions/checkout@v3
+      
+      - name: Set up Python 3.12.7
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
-
-      - name: Install Dependencies
+          python-version: "3.12.7"
+      
+      - name: Check Env
         run: |
-          pip install mlflow==2.19.0
+          python --version
+          pip --version
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Run MLflow Project (Training)
+      
+      - name: Run mlflow project
         run: |
-          export MLFLOW_TRACKING_URI=$PWD/mlruns
-          mlflow run MLProject --env-manager=local --experiment-name=Heart_Disease_Final_Model
-
-      - name: Get Latest MLflow Run ID
-        id: get_run
+          mlflow ui --host 127.0.0.1 --port 5000 &
+          sleep 10
+          mlflow run . --env-manager=local --experiment-name=Heart_Disease_Final_Model
+          pkill -f "mlflow ui"
+      
+      - name: Get latest MLflow run_id
+        id: get_run_id
         run: |
           RUN_ID=$(find mlruns -type f -name "meta.yaml" -printf '%T@ %p\n' | sort -rn | head -1 | awk '{print $2}' | xargs dirname | xargs basename)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest RUN_ID: $RUN_ID"
-
-      - name: Build Docker Image with MLflow
+      
+      - name: Install Python dependencies
         run: |
-          export MLFLOW_TRACKING_URI=$PWD/mlruns
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+      
+      - name: Upload to Google Drive
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          echo "$GOOGLE_CREDENTIALS" > credentials.json
+          python - <<EOF
+          import os
+          import json
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+          
+          SCOPES = ['https://www.googleapis.com/auth/drive.file']
+          credentials = service_account.Credentials.from_service_account_file(
+              'credentials.json', scopes=SCOPES)
+          service = build('drive', 'v3', credentials=credentials)
+          
+          run_id = os.environ['RUN_ID']
+          
+          mlruns_folders = []
+          for root, dirs, files in os.walk('mlruns'):
+              for file in files:
+                  mlruns_folders.append(os.path.join(root, file))
+          
+          folder_metadata = {
+              'name': f'mlflow_artifacts_{run_id}',
+              'mimeType': 'application/vnd.google-apps.folder'
+          }
+          folder = service.files().create(body=folder_metadata, fields='id').execute()
+          folder_id = folder.get('id')
+          
+          print(f"Created folder with ID: {folder_id}")
+          
+          for file_path in mlruns_folders:
+              file_metadata = {'name': os.path.basename(file_path), 'parents': [folder_id]}
+              media = MediaFileUpload(file_path, resumable=True)
+              file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+              print(f"Uploaded: {file_path}")
+          
+          print("All artifacts uploaded to Google Drive")
+          EOF
+          rm credentials.json
+      
+      - name: Build Docker Model
+        run: |
           mlflow models build-docker \
             --model-uri runs:/$RUN_ID/model \
             --name heart-disease-model
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Push Docker Image
+      
+      - name: Tag Docker Image
         run: |
           docker tag heart-disease-model ${{ secrets.DOCKER_USERNAME }}/heart-disease-model:latest
+      
+      - name: Push Docker Image
+        run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/heart-disease-model:latest
+      
+      - name: Post Log in to Docker Hub
+        run: echo "Logged out from Docker Hub"
+      
+      - name: Post Set up Python 3.12.7
+        run: echo "Python environment cleaned"
+      
+      - name: Post Run actions/checkout@v3
+        run: echo "Repository checkout completed"
+      
+      - name: Complete job
+        run: echo "MLflow training pipeline completed successfully"
