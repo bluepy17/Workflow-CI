@@ -21,8 +21,6 @@ def train_model(X_train, X_test, y_train, y_test):
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
     mlflow.set_experiment("Heart_Disease_Model")
     
-    mlflow.sklearn.autolog(log_models=False, log_input_examples=False, log_model_signatures=False)
-    
     with mlflow.start_run(run_name="Voting_RF_GB_Final"):
         rf = RandomForestClassifier(
             n_estimators=300,
@@ -61,12 +59,28 @@ def train_model(X_train, X_test, y_train, y_test):
         f1 = f1_score(y_test, y_pred)
         roc = roc_auc_score(y_test, y_proba)
         
+        mlflow.log_param("rf_n_estimators", 300)
+        mlflow.log_param("rf_max_depth", 20)
+        mlflow.log_param("rf_min_samples_leaf", 2)
+        mlflow.log_param("rf_class_weight", "balanced")
+        mlflow.log_param("gb_n_estimators", 200)
+        mlflow.log_param("gb_learning_rate", 0.08)
+        mlflow.log_param("gb_max_depth", 4)
+        mlflow.log_param("gb_subsample", 0.8)
+        mlflow.log_param("voting_weights", "2:1")
         mlflow.log_param("threshold", 0.25)
+        
         mlflow.log_metric("accuracy", acc)
         mlflow.log_metric("precision", prec)
         mlflow.log_metric("recall", rec)
         mlflow.log_metric("f1_score", f1)
         mlflow.log_metric("roc_auc", roc)
+        
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model",
+            registered_model_name="Heart_Disease_Voting_Classifier"
+        )
         
         print(f"Accuracy: {acc:.4f}")
         print(f"Precision: {prec:.4f}")
@@ -83,5 +97,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-Y.txt
-3 KB
