@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier,
 from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 warnings.filterwarnings("ignore")
+os.environ['MPLBACKEND'] = 'Agg'
 
 def load_data():
     base_path = os.path.join(os.path.dirname(__file__), "heart_preprocessing")
@@ -20,7 +21,7 @@ def train_model(X_train, X_test, y_train, y_test):
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
     mlflow.set_experiment("Heart_Disease_Model")
     
-    mlflow.sklearn.autolog()
+    mlflow.sklearn.autolog(log_models=False, log_input_examples=False, log_model_signatures=False)
     
     with mlflow.start_run(run_name="Voting_RF_GB_Final"):
         rf = RandomForestClassifier(
@@ -82,3 +83,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+Y.txt
+3 KB
