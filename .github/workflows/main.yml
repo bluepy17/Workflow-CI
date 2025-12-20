@@ -60,6 +60,7 @@ jobs:
           python - <<'PYTHON_SCRIPT'
           import os
           import json
+          import zipfile
           from google.oauth2 import service_account
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
@@ -72,30 +73,29 @@ jobs:
           run_id = os.environ['RUN_ID']
           parent_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
           
-          mlruns_folders = []
-          for root, dirs, files in os.walk('mlruns'):
-              for file in files:
-                  mlruns_folders.append(os.path.join(root, file))
+          zip_filename = f'mlflow_artifacts_{run_id}.zip'
+          with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+              for root, dirs, files in os.walk('mlruns'):
+                  for file in files:
+                      file_path = os.path.join(root, file)
+                      arcname = os.path.relpath(file_path, '.')
+                      zipf.write(file_path, arcname)
           
-          folder_metadata = {
-              'name': f'mlflow_artifacts_{run_id}',
-              'mimeType': 'application/vnd.google-apps.folder'
-          }
+          print(f'Created zip file: {zip_filename}')
           
+          file_metadata = {'name': zip_filename}
           if parent_folder_id:
-              folder_metadata['parents'] = [parent_folder_id]
+              file_metadata['parents'] = [parent_folder_id]
           
-          folder = service.files().create(body=folder_metadata, fields='id').execute()
-          folder_id = folder.get('id')
+          media = MediaFileUpload(zip_filename, resumable=True)
+          file = service.files().create(
+              body=file_metadata,
+              media_body=media,
+              fields='id,webViewLink'
+          ).execute()
           
-          print(f'Created folder with ID: {folder_id}')
-          
-          for file_path in mlruns_folders:
-              file_metadata = {'name': os.path.basename(file_path), 'parents': [folder_id]}
-              media = MediaFileUpload(file_path, resumable=True)
-              file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-              print(f'Uploaded: {file_path}')
-          
+          print(f'Uploaded file ID: {file.get("id")}')
+          print(f'File link: {file.get("webViewLink")}')
           print('All artifacts uploaded to Google Drive')
           PYTHON_SCRIPT
           rm credentials.json
