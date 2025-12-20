@@ -44,45 +44,12 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest RUN_ID: $RUN_ID"
       
-      - name: Install Python dependencies
-        run: |
-          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-      
-      - name: Upload to Google Drive
-        env:
-          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
-        run: |
-          cd MLProject
-          zip -r mlflow_artifacts_$RUN_ID.zip mlruns
-          python - << 'EOF'
-          import os
-          import json
-          from google.oauth2 import service_account
-          from googleapiclient.discovery import build
-          from googleapiclient.http import MediaFileUpload
-          
-          creds_json = os.environ['GDRIVE_CREDENTIALS_JSON']
-          creds_dict = json.loads(creds_json)
-          credentials = service_account.Credentials.from_service_account_info(
-              creds_dict,
-              scopes=['https://www.googleapis.com/auth/drive.file']
-          )
-          
-          service = build('drive', 'v3', credentials=credentials)
-          
-          run_id = os.environ['RUN_ID']
-          file_name = f'mlflow_artifacts_{run_id}.zip'
-          
-          file_metadata = {'name': file_name}
-          media = MediaFileUpload(file_name, resumable=True)
-          file = service.files().create(
-              body=file_metadata,
-              media_body=media,
-              fields='id'
-          ).execute()
-          
-          print(f'File uploaded successfully. File ID: {file.get("id")}')
-          EOF
+      - name: Upload to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-artifacts-${{ env.RUN_ID }}
+          path: MLProject/mlruns
+          retention-days: 30
       
       - name: Build Docker Model
         run: |
