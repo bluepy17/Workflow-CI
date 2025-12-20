@@ -65,13 +65,13 @@ jobs:
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
           
-          SCOPES = ['https://www.googleapis.com/auth/drive.file']
+          SCOPES = ['https://www.googleapis.com/auth/drive']
           credentials = service_account.Credentials.from_service_account_file(
               'credentials.json', scopes=SCOPES)
           service = build('drive', 'v3', credentials=credentials)
           
           run_id = os.environ['RUN_ID']
-          parent_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+          folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
           
           zip_filename = f'mlflow_artifacts_{run_id}.zip'
           with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -82,10 +82,19 @@ jobs:
                       zipf.write(file_path, arcname)
           
           print(f'Created zip file: {zip_filename}')
+          print(f'Target folder ID: {folder_id}')
           
-          file_metadata = {'name': zip_filename}
-          if parent_folder_id:
-              file_metadata['parents'] = [parent_folder_id]
+          try:
+              folder_check = service.files().get(fileId=folder_id, fields='id,name').execute()
+              print(f'Folder exists: {folder_check.get("name")}')
+          except Exception as e:
+              print(f'Error accessing folder: {e}')
+              raise
+          
+          file_metadata = {
+              'name': zip_filename,
+              'parents': [folder_id]
+          }
           
           media = MediaFileUpload(zip_filename, resumable=True)
           file = service.files().create(
