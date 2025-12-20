@@ -18,8 +18,6 @@ def load_data():
     return X_train, X_test, y_train, y_test
 
 def train_model(X_train, X_test, y_train, y_test):
-    mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=20,
