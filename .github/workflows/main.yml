@@ -50,7 +50,7 @@ jobs:
           zip -r mlflow_artifacts_$RUN_ID.zip mlruns
           echo "Created zip file: mlflow_artifacts_$RUN_ID.zip"
       
-      - name: Upload MLflow artifacts to GitHub
+      - name: Upload to GitHub
         uses: actions/upload-artifact@v4
         with:
           name: mlflow-artifacts-${{ env.RUN_ID }}
