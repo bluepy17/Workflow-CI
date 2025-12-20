@@ -19,74 +19,72 @@ def load_data():
 
 def train_model(X_train, X_test, y_train, y_test):
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    mlflow.set_experiment("Heart_Disease_Model")
     
-    with mlflow.start_run(run_name="Voting_RF_GB_Final"):
-        rf = RandomForestClassifier(
-            n_estimators=300,
-            max_depth=20,
-            min_samples_leaf=2,
-            class_weight="balanced",
-            random_state=42,
-            n_jobs=-1
-        )
-        
-        gb = GradientBoostingClassifier(
-            n_estimators=200,
-            learning_rate=0.08,
-            max_depth=4,
-            subsample=0.8,
-            random_state=42
-        )
-        
-        model = VotingClassifier(
-            estimators=[("rf", rf), ("gb", gb)],
-            voting="soft",
-            weights=[2, 1],
-            n_jobs=-1
-        )
-        
-        model.fit(X_train, y_train)
-        
-        y_proba = model.predict_proba(X_test)[:, 1]
-        y_pred = (y_proba >= 0.25).astype(int)
-        
-        print(classification_report(y_test, y_pred))
-        
-        acc = accuracy_score(y_test, y_pred)
-        prec = precision_score(y_test, y_pred)
-        rec = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
-        roc = roc_auc_score(y_test, y_proba)
-        
-        mlflow.log_param("rf_n_estimators", 300)
-        mlflow.log_param("rf_max_depth", 20)
-        mlflow.log_param("rf_min_samples_leaf", 2)
-        mlflow.log_param("rf_class_weight", "balanced")
-        mlflow.log_param("gb_n_estimators", 200)
-        mlflow.log_param("gb_learning_rate", 0.08)
-        mlflow.log_param("gb_max_depth", 4)
-        mlflow.log_param("gb_subsample", 0.8)
-        mlflow.log_param("voting_weights", "2:1")
-        mlflow.log_param("threshold", 0.25)
-        
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("precision", prec)
-        mlflow.log_metric("recall", rec)
-        mlflow.log_metric("f1_score", f1)
-        mlflow.log_metric("roc_auc", roc)
-        
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="model",
-            registered_model_name="Heart_Disease_Voting_Classifier"
-        )
-        
-        print(f"Accuracy: {acc:.4f}")
-        print(f"Precision: {prec:.4f}")
-        print(f"Recall: {rec:.4f}")
-        print(f"F1 Score: {f1:.4f}")
-        print(f"ROC AUC: {roc:.4f}")
+    rf = RandomForestClassifier(
+        n_estimators=300,
+        max_depth=20,
+        min_samples_leaf=2,
+        class_weight="balanced",
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    gb = GradientBoostingClassifier(
+        n_estimators=200,
+        learning_rate=0.08,
+        max_depth=4,
+        subsample=0.8,
+        random_state=42
+    )
+    
+    model = VotingClassifier(
+        estimators=[("rf", rf), ("gb", gb)],
+        voting="soft",
+        weights=[2, 1],
+        n_jobs=-1
+    )
+    
+    model.fit(X_train, y_train)
+    
+    y_proba = model.predict_proba(X_test)[:, 1]
+    y_pred = (y_proba >= 0.25).astype(int)
+    
+    print(classification_report(y_test, y_pred))
+    
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc = roc_auc_score(y_test, y_proba)
+    
+    mlflow.log_param("rf_n_estimators", 300)
+    mlflow.log_param("rf_max_depth", 20)
+    mlflow.log_param("rf_min_samples_leaf", 2)
+    mlflow.log_param("rf_class_weight", "balanced")
+    mlflow.log_param("gb_n_estimators", 200)
+    mlflow.log_param("gb_learning_rate", 0.08)
+    mlflow.log_param("gb_max_depth", 4)
+    mlflow.log_param("gb_subsample", 0.8)
+    mlflow.log_param("voting_weights", "2:1")
+    mlflow.log_param("threshold", 0.25)
+    
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("precision", prec)
+    mlflow.log_metric("recall", rec)
+    mlflow.log_metric("f1_score", f1)
+    mlflow.log_metric("roc_auc", roc)
+    
+    mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="model",
+        registered_model_name="Heart_Disease_Voting_Classifier"
+    )
+    
+    print(f"Accuracy: {acc:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"Recall: {rec:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"ROC AUC: {roc:.4f}")
     
     return model
 
