@@ -18,11 +18,11 @@ def load_data():
 
 def train_model(X_train, X_test, y_train, y_test):
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    mlflow.set_experiment("Heart_Disease_Final_Model")
+    mlflow.set_experiment("Heart_Disease_Model")
     
     mlflow.sklearn.autolog()
     
-    with mlflow.start_run():
+    with mlflow.start_run(run_name="Voting_RF_GB_Final"):
         rf = RandomForestClassifier(
             n_estimators=300,
             max_depth=20,
