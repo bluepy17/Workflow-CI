@@ -52,9 +52,12 @@ jobs:
       - name: Upload to Google Drive
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: |
-          echo "$GOOGLE_CREDENTIALS" > credentials.json
-          python - <<EOF
+          cat > credentials.json << 'EOF'
+          ${{ secrets.GOOGLE_CREDENTIALS }}
+          EOF
+          python - <<'PYTHON_SCRIPT'
           import os
           import json
           from google.oauth2 import service_account
@@ -67,6 +70,7 @@ jobs:
           service = build('drive', 'v3', credentials=credentials)
           
           run_id = os.environ['RUN_ID']
+          parent_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
           
           mlruns_folders = []
           for root, dirs, files in os.walk('mlruns'):
@@ -77,19 +81,23 @@ jobs:
               'name': f'mlflow_artifacts_{run_id}',
               'mimeType': 'application/vnd.google-apps.folder'
           }
+          
+          if parent_folder_id:
+              folder_metadata['parents'] = [parent_folder_id]
+          
           folder = service.files().create(body=folder_metadata, fields='id').execute()
           folder_id = folder.get('id')
           
-          print(f"Created folder with ID: {folder_id}")
+          print(f'Created folder with ID: {folder_id}')
           
           for file_path in mlruns_folders:
               file_metadata = {'name': os.path.basename(file_path), 'parents': [folder_id]}
               media = MediaFileUpload(file_path, resumable=True)
               file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-              print(f"Uploaded: {file_path}")
+              print(f'Uploaded: {file_path}')
           
-          print("All artifacts uploaded to Google Drive")
-          EOF
+          print('All artifacts uploaded to Google Drive')
+          PYTHON_SCRIPT
           rm credentials.json
       
       - name: Build Docker Model
