@@ -52,26 +52,23 @@ jobs:
       - name: Upload to Google Drive
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: |
           cat > credentials.json << 'EOF'
           ${{ secrets.GOOGLE_CREDENTIALS }}
           EOF
           python - <<'PYTHON_SCRIPT'
           import os
-          import json
           import zipfile
           from google.oauth2 import service_account
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
           
-          SCOPES = ['https://www.googleapis.com/auth/drive']
+          SCOPES = ['https://www.googleapis.com/auth/drive.file']
           credentials = service_account.Credentials.from_service_account_file(
               'credentials.json', scopes=SCOPES)
           service = build('drive', 'v3', credentials=credentials)
           
           run_id = os.environ['RUN_ID']
-          folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
           
           zip_filename = f'mlflow_artifacts_{run_id}.zip'
           with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -82,29 +79,30 @@ jobs:
                       zipf.write(file_path, arcname)
           
           print(f'Created zip file: {zip_filename}')
-          print(f'Target folder ID: {folder_id}')
           
-          try:
-              folder_check = service.files().get(fileId=folder_id, fields='id,name').execute()
-              print(f'Folder exists: {folder_check.get("name")}')
-          except Exception as e:
-              print(f'Error accessing folder: {e}')
-              raise
-          
-          file_metadata = {
-              'name': zip_filename,
-              'parents': [folder_id]
-          }
-          
+          file_metadata = {'name': zip_filename}
           media = MediaFileUpload(zip_filename, resumable=True)
+          
           file = service.files().create(
               body=file_metadata,
               media_body=media,
-              fields='id,webViewLink'
+              fields='id,webViewLink,webContentLink'
           ).execute()
           
-          print(f'Uploaded file ID: {file.get("id")}')
-          print(f'File link: {file.get("webViewLink")}')
+          file_id = file.get('id')
+          
+          permission = {
+              'type': 'anyone',
+              'role': 'reader'
+          }
+          service.permissions().create(
+              fileId=file_id,
+              body=permission
+          ).execute()
+          
+          print(f'Uploaded file ID: {file_id}')
+          print(f'View link: {file.get("webViewLink")}')
+          print(f'Download link: {file.get("webContentLink")}')
           print('All artifacts uploaded to Google Drive')
           PYTHON_SCRIPT
           rm credentials.json
